@@ -137,3 +137,46 @@ describe('قطعی سرور نباید کاربر را بیرون بیندازد
     expect(getCachedUser()?.phone).toBe(phone);
   });
 });
+
+// =====================================================================
+//  باگ واقعیِ گزارش‌شده: پروکسی پیش‌نمایش هدر Authorization را حذف
+//  می‌کرد؛ در نتیجه کاربر با توکن معتبر ۴۰۱ و «جلسه‌ی شما تمام شد»
+//  می‌دید. توکن باید از راه جایگزین هم به سرور برسد.
+// =====================================================================
+describe('رسیدن توکن به سرور وقتی پروکسی Authorization را حذف می‌کند', () => {
+  it('هر درخواستِ احراز هویت‌شده، توکن را با دو هدر می‌فرستد', async () => {
+    const { token } = await makeUser();
+    const seen: Record<string, string> = {};
+    global.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      Object.assign(seen, (init?.headers ?? {}) as Record<string, string>);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await api('/api/health');
+
+    expect(seen['Authorization']).toBe(`Bearer ${token}`);
+    expect(seen['X-Auth-Token']).toBe(token);
+  });
+
+  it('با حذف کامل Authorization توسط پروکسی، جلسه سالم می‌ماند', async () => {
+    await makeUser();
+
+    // پروکسی را شبیه‌سازی می‌کنیم: هدر Authorization را می‌گیرد و بقیه را
+    // به سرور واقعی می‌فرستد. اگر سرور X-Auth-Token را قبول نکند، ۴۰۱ می‌شود.
+    global.fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      headers.delete('Authorization');
+      return realFetch(String(url), { ...init, headers });
+    }) as unknown as typeof fetch;
+
+    goto('#/brands');
+    mountApp();
+
+    expect(
+      await screen.findByText('پیشرفت کلی آموزش شما', {}, { timeout: 10_000 }),
+      'با وجود حذف Authorization، کاتالوگ باید بارگذاری شود',
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/جلسه‌ی شما تمام شد/)).not.toBeInTheDocument();
+    expect(getToken(), 'توکن نباید پاک شود').toBeTruthy();
+  });
+});

@@ -301,6 +301,41 @@ async function main() {
   const goneProduct = await api(`/api/products/${product.id}`, { token });
   check('محصولات برند هم آبشاری حذف شدند', goneProduct.status === 404, String(goneProduct.status));
 
+  // ---------- ۱۳) راه‌های رسیدن توکن به سرور (باگ پروکسی پیش‌نمایش) ----------
+  // پروکسی پیش‌نمایش هدر Authorization را حذف می‌کرد؛ کاربر با توکن معتبر
+  // ۴۰۱ و «جلسه‌ی شما تمام شد» می‌دید. توکن باید از سه راه پذیرفته شود.
+  console.log('\n▸ راه‌های رسیدن توکن به سرور');
+
+  const tkxSignup = await fetch(`${BASE}/api/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ firstName: 'کوکی', lastName: 'تست', phone: `095${String(Date.now()).slice(-8)}` }),
+  });
+  const tkxCookie = tkxSignup.headers.get('Set-Cookie') ?? '';
+  check('پاسخ ثبت‌نام هدر Set-Cookie دارد', tkxCookie.startsWith('ssl_token='), tkxCookie.slice(0, 30));
+  const tkxToken = (await tkxSignup.json()).token;
+
+  const tkxViaAuth = await fetch(`${BASE}/api/catalog`, { headers: { Authorization: `Bearer ${tkxToken}` } });
+  check('توکن از هدر Authorization → 200', tkxViaAuth.status === 200, String(tkxViaAuth.status));
+
+  const tkxViaCustom = await fetch(`${BASE}/api/catalog`, { headers: { 'X-Auth-Token': tkxToken } });
+  check('توکن از هدر X-Auth-Token → 200', tkxViaCustom.status === 200, String(tkxViaCustom.status));
+
+  const tkxViaCookie = await fetch(`${BASE}/api/catalog`, {
+    headers: { Cookie: `ssl_token=${encodeURIComponent(tkxToken)}` },
+  });
+  check('توکن از کوکی → 200', tkxViaCookie.status === 200, String(tkxViaCookie.status));
+
+  const tkxNone = await fetch(`${BASE}/api/catalog`);
+  check('بدون توکن → 401', tkxNone.status === 401, String(tkxNone.status));
+
+  const tkxBad = await fetch(`${BASE}/api/catalog`, { headers: { 'X-Auth-Token': 'tampered.token' } });
+  check('توکن دستکاری‌شده → 401', tkxBad.status === 401, String(tkxBad.status));
+
+  const tkxPre = await fetch(`${BASE}/api/catalog`, { method: 'OPTIONS' });
+  const tkxAllow = tkxPre.headers.get('Access-Control-Allow-Headers') ?? '';
+  check('CORS هدر X-Auth-Token را مجاز می‌داند', tkxAllow.includes('X-Auth-Token'), tkxAllow);
+
   // ---------- خلاصه ----------
   console.log(`\n${'='.repeat(56)}`);
   if (failures.length === 0) {

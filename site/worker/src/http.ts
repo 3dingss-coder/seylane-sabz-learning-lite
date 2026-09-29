@@ -22,15 +22,51 @@ export function corsHeaders(request: Request, env: { ALLOWED_ORIGINS?: string })
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
 }
 
+export const TOKEN_COOKIE = 'ssl_token';
+
+/**
+ * بیرون کشیدن توکن جلسه از درخواست.
+ *
+ * سه راه را قبول می‌کنیم، چون بعضی پروکسی‌ها (مثل پروکسی پیش‌نمایش) هدر
+ * Authorization را در میانه‌ی راه حذف می‌کنند و کاربر با وجود توکن معتبر
+ * خطای ۴۰۱ و «جلسه‌ی شما تمام شد» می‌دید.
+ *   ۱) هدر استاندارد  Authorization: Bearer <token>
+ *   ۲) هدر سفارشی      X-Auth-Token: <token>   ← پروکسی‌ها معمولاً این را نگه می‌دارند
+ *   ۳) کوکی            ssl_token=<token>       ← مرورگر خودش می‌فرستد
+ */
 export function bearer(request: Request): string | null {
   const h = request.headers.get('Authorization') ?? '';
-  return h.toLowerCase().startsWith('bearer ') ? h.slice(7).trim() : null;
+  if (h.toLowerCase().startsWith('bearer ')) {
+    const t = h.slice(7).trim();
+    if (t) return t;
+  }
+  const custom = (request.headers.get('X-Auth-Token') ?? '').trim();
+  if (custom) return custom;
+  const cookie = request.headers.get('Cookie') ?? '';
+  const m = cookie.match(new RegExp(`(?:^|;\\s*)${TOKEN_COOKIE}=([^;]+)`));
+  if (m?.[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return m[1];
+    }
+  }
+  return null;
+}
+
+/** هدر Set-Cookie برای نگه‌داشتن توکن به‌عنوان جایگزینِ هدر Authorization */
+export function sessionCookie(token: string, maxAgeDays = 30): string {
+  return `${TOKEN_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAgeDays * 86400}; SameSite=Lax`;
+}
+
+export function clearSessionCookie(): string {
+  return `${TOKEN_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
 export async function readJson<T>(request: Request): Promise<T> {

@@ -92,7 +92,10 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
       method,
       headers: {
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(auth && t ? { Authorization: `Bearer ${t}` } : {}),
+        // توکن را با دو هدر می‌فرستیم: بعضی پروکسی‌ها هدر استاندارد
+        // Authorization را در میانه‌ی راه حذف می‌کنند و کاربر با توکن
+        // معتبر، ۴۰۱ و «جلسه‌ی شما تمام شد» می‌گرفت. سرور هر دو را قبول دارد.
+        ...(auth && t ? { Authorization: `Bearer ${t}`, 'X-Auth-Token': t } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });

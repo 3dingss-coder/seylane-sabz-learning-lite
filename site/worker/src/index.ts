@@ -11,7 +11,7 @@ import {
   upsertUser,
   verifyToken,
 } from './auth';
-import { bearer, corsHeaders, fail, json, pathSegments, readJson } from './http';
+import { bearer, corsHeaders, fail, json, pathSegments, readJson, sessionCookie } from './http';
 import { normalizePhone, nowIso } from './util';
 import {
   contentDetail,
@@ -65,6 +65,11 @@ export default {
 async function route(request: Request, env: Env, url: URL, cors: HeadersInit): Promise<Response> {
   const method = request.method;
 
+  // پاسخ ورود/ثبت‌نام: توکن را هم در بدنه و هم در کوکی می‌دهیم تا اگر
+  // پروکسیِ میانی هدر Authorization را حذف کرد، کوکی جلسه را نگه دارد.
+  const authResponse = (payload: Record<string, unknown>, status: number): Response =>
+    json(payload, status, { ...cors, 'Set-Cookie': sessionCookie(String(payload.token ?? '')) });
+
   // سلامت سرویس
   if (url.pathname === '/api/health') {
     const ok = await env.DB.prepare('SELECT 1 AS one').first<{ one: number }>();
@@ -85,10 +90,10 @@ async function route(request: Request, env: Env, url: URL, cors: HeadersInit): P
     if (existing) {
       // کاربر از قبل هست → مستقیم واردش می‌کنیم (تجربه‌ی بدون خطا برای کاربر تازه‌وارد).
       const user = await upsertUser(env, { firstName, lastName, phone });
-      return json({ token: await signToken(env, user), user: publicUser(user), alreadyRegistered: true }, 200, cors);
+      return authResponse({ token: await signToken(env, user), user: publicUser(user), alreadyRegistered: true }, 200);
     }
     const user = await upsertUser(env, { firstName, lastName, phone });
-    return json({ token: await signToken(env, user), user: publicUser(user) }, 201, cors);
+    return authResponse({ token: await signToken(env, user), user: publicUser(user) }, 201);
   }
 
   // ------------------------------------------------------- ورود
@@ -109,7 +114,7 @@ async function route(request: Request, env: Env, url: URL, cors: HeadersInit): P
       const lastName = String(body.lastName ?? '').trim();
       if (firstName.length >= 2 && lastName.length >= 2) {
         const user = await upsertUser(env, { firstName, lastName, phone });
-        return json({ token: await signToken(env, user), user: publicUser(user), signedUp: true }, 201, cors);
+        return authResponse({ token: await signToken(env, user), user: publicUser(user), signedUp: true }, 201);
       }
       return fail('NOT_REGISTERED', 'این شماره ثبت نشده. اول ثبت‌نام کنید.', 404, cors);
     }
@@ -125,19 +130,35 @@ async function route(request: Request, env: Env, url: URL, cors: HeadersInit): P
     if (user.role !== row.role) {
       await env.DB.prepare('UPDATE users SET role = ?1 WHERE id = ?2').bind(user.role, user.id).run();
     }
-    return json({ token: await signToken(env, user), user: publicUser(user) }, 200, cors);
+    return authResponse({ token: await signToken(env, user), user: publicUser(user) }, 200);
   }
 
   // ------------------------------------------------------- از اینجا به بعد توکن لازم است
   const claims = await verifyToken(env, bearer(request));
-  if (!claims) return fail('UNAUTHORIZED', 'لطفاً دوباره وارد شوید.', 401, cors);
+  if (!claims) {
+    // لاگ تشخیصی: وقتی کاربر «جلسه تمام شد» می‌بیند، از این خطا معلوم می‌شود
+    // آیا توکن اصلاً به سرور رسیده یا پروکسیِ میانی هدرش را حذف کرده است.
+    const rawAuth = request.headers.get('Authorization');
+    console.warn(
+      `[auth] 401 token-missing-or-invalid path=${url.pathname}` +
+        ` hasAuthHeader=${rawAuth !== null}` +
+        ` authLen=${rawAuth?.length ?? 0}` +
+        ` hasXAuth=${request.headers.get('X-Auth-Token') !== null}` +
+        ` hasCookie=${request.headers.get('Cookie') !== null}` +
+        ` origin=${request.headers.get('Origin') ?? '-'}`,
+    );
+    return fail('UNAUTHORIZED', 'لطفاً دوباره وارد شوید.', 401, cors);
+  }
 
   const user = await env.DB.prepare(
     'SELECT id, first_name, last_name, phone, role FROM users WHERE id = ?1',
   )
     .bind(claims.id)
     .first<SessionUser>();
-  if (!user) return fail('UNAUTHORIZED', 'حساب کاربری پیدا نشد.', 401, cors);
+  if (!user) {
+    console.warn(`[auth] 401 user-not-found path=${url.pathname} id=${claims.id}`);
+    return fail('UNAUTHORIZED', 'حساب کاربری پیدا نشد.', 401, cors);
+  }
 
   // ------------------------------------------------------- مسیرهای ادمین
   const adminSegs = pathSegments(url, '/api/admin');
