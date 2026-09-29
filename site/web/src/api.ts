@@ -86,14 +86,25 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   const { method = 'GET', body, auth = true, token, unauthorized = 'handler' } = opts;
   const t = token !== undefined ? token : getToken();
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(auth && t ? { Authorization: `Bearer ${t}` } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(auth && t ? { Authorization: `Bearer ${t}` } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // خطای شبکه (سرور خاموش، آفلاین، قطع پروکسی). این با «توکن باطل»
+    // فرق دارد و هرگز نباید باعث خروج کاربر شود.
+    throw new ApiError(
+      'NETWORK',
+      'اتصال به سرور برقرار نشد. کمی صبر کنید و دوباره تلاش کنید.',
+      0,
+    );
+  }
 
   let data: unknown = null;
   try {
@@ -110,7 +121,11 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
       clearSession();
       if (unauthorized === 'handler') unauthorizedHandler?.();
     }
-    throw new ApiError(err?.error ?? 'ERROR', err?.message ?? 'اتصال برقرار نشد. دوباره تلاش کنید.', res.status);
+    throw new ApiError(
+      err?.error ?? 'ERROR',
+      err?.message ?? 'خطایی رخ داد. دوباره تلاش کنید.',
+      res.status,
+    );
   }
   return data as T;
 }

@@ -13,7 +13,8 @@
     "seed:local": "node seed.mjs --local",
     "seed:remote": "node seed.mjs --remote",
     "test:e2e": "node test/run-e2e.mjs",
-    "test": "npm run typecheck && npm run test:e2e"
+    "test": "npm run typecheck && npm run test:e2e",
+    "db:reset": "node scripts/reset-local-db.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250913.0",

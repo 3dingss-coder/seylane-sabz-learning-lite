@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import {
   api,
+  ApiError,
   clearSession,
   getCachedUser,
   getToken,
@@ -70,11 +71,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setSession(token, res.user);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!alive) return;
-        clearSession();
-        setUser(null);
-        setNotice('جلسه‌ی شما تمام شده بود. دوباره وارد شوید.');
+        // فقط وقتی توکن واقعاً باطل است (401) جلسه را دور می‌ریزیم.
+        // خطای شبکه یا خطای سرور دلیل بر پایان جلسه نیست — کاربر را
+        // وارد نگه می‌داریم تا با برگشتن اتصال، بدون ورود دوباره ادامه دهد.
+        if (err instanceof ApiError && err.status === 401) {
+          clearSession();
+          setUser(null);
+          setNotice('جلسه‌ی شما تمام شده بود. دوباره وارد شوید.');
+        } else {
+          setNotice('اتصال به سرور برقرار نشد. وارد هستید؛ کمی دیگر دوباره تلاش کنید.');
+        }
       })
       .finally(() => {
         if (alive) setReady(true);
