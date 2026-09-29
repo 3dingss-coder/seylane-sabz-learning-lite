@@ -1,0 +1,90 @@
+# =====================================================================
+#  سایت سیلانه‌سبز — تست + انتشار روی GitHub Pages
+#  Secrets/Variables لازم (در Settings → Secrets and variables → Actions):
+#    VITE_API_BASE   آدرس Worker، مثلاً https://ssl-api.<زیردامنه>.workers.dev/api
+# =====================================================================
+name: سایت — تست و انتشار
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/site-web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: تست‌ها
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: نصب وابستگی‌های Worker
+        working-directory: site/worker
+        run: npm ci || npm install --no-audit --no-fund
+
+      - name: typecheck + تست یکپارچگی API
+        working-directory: site/worker
+        run: npm test
+
+      - name: نصب وابستگی‌های وب
+        working-directory: site/web
+        run: npm ci || npm install --no-audit --no-fund
+
+      - name: typecheck وب
+        working-directory: site/web
+        run: npx tsc --noEmit
+
+      - name: نصب مرورگر Playwright
+        working-directory: site/web
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: تست مرورگر واقعی (موبایل و دسکتاپ)
+        working-directory: site/web
+        run: npm run test:browser
+
+  build:
+    name: ساخت و انتشار
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: نصب وابستگی‌ها
+        working-directory: site/web
+        run: npm ci || npm install --no-audit --no-fund
+
+      - name: ساخت سایت
+        working-directory: site/web
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: npm run build
+
+      - name: بررسی بیلد زیر زیرمسیر (مثل GitHub Pages)
+        working-directory: site/web
+        run: node ../scripts/check-dist.mjs
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/web/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

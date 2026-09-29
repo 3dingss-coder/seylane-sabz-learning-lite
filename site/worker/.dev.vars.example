@@ -1,0 +1,7 @@
+# این فایل فقط برای اجرای محلی (wrangler dev) است و در گیت commit نمی‌شود.
+# روی کلودفلر همین‌ها را با دستور secret بگذارید:
+#   npx wrangler secret put AUTH_SECRET
+#   npx wrangler secret put ADMIN_PHONE
+AUTH_SECRET=dev-secret-key-change-me
+ADMIN_PHONE=09120000001
+ALLOWED_ORIGINS=*

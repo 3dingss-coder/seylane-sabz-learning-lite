@@ -33,3 +33,11 @@ functions/.local-data/
 *.seed-report.tmp.md
 functions/.query-log.jsonl
 .lighthouseci/
+.dev.vars
+.wrangler/
+.test-state/
+site/web/public/catalog/
+site/web/public/icons/
+*.tsbuildinfo
+test-results/
+playwright-report/

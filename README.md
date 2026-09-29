@@ -1,5 +1,14 @@
 # سیلانه‌سبز لرنینگ — Seylane Sabz Learning
 
+> ## 🟢 نسخه‌ی ساده و فعال: [`site/`](./site/README.md)
+> سایت سبک و رایگانی که الان استفاده می‌شود در پوشه‌ی **`site/`** است:
+> **GitHub Pages** (سایت) + **Cloudflare Workers + D1** (API و دیتابیس)، بدون Firebase، بدون R2، بدون کارت بانکی.
+> راهنمای کامل راه‌اندازی (۱۰ قدم) و راهنمای پنل ادمین: [`site/README.md`](./site/README.md)
+>
+> بقیه‌ی این فایل مربوط به نسخه‌ی قدیمی و سنگین Firebase است که دست‌نخورده نگه داشته شده.
+
+---
+
 Internal micro-learning / sales-enablement app for Seylane Sabz holding marketers.
 The spec is **[`PRODUCT-MASTER-SPEC.md`](./PRODUCT-MASTER-SPEC.md)**, which is the single source of truth. This README covers how to run, build and deploy.
 

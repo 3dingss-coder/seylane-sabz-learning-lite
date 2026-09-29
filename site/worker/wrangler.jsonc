@@ -1,0 +1,30 @@
+{
+  // =====================================================================
+  //  تنظیمات Cloudflare Worker
+  //  بعد از ساختن دیتابیس، مقدار database_id را جایگزین کنید:
+  //     npm run db:create   → یک شناسه چاپ می‌کند
+  // =====================================================================
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ssl-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ssl-db",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+    }
+  ],
+
+  "vars": {
+    // دامنه‌ی سایت (GitHub Pages) — با ویرگول جدا کنید. * یعنی همه (برای شروع ساده).
+    "ALLOWED_ORIGINS": "*",
+    "TOKEN_TTL_DAYS": "30"
+  }
+
+  // این دو تا «Secret» هستند و با دستور زیر گذاشته می‌شوند (در فایل نوشته نمی‌شوند):
+  //   npx wrangler secret put AUTH_SECRET
+  //   npx wrangler secret put ADMIN_PHONE
+}

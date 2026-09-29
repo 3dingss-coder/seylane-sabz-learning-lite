@@ -1,0 +1,23 @@
+{
+  "name": "ssl-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0 --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:create": "wrangler d1 create ssl-db",
+    "db:migrate:local": "wrangler d1 execute ssl-db --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute ssl-db --remote --file=./schema.sql",
+    "seed:local": "node seed.mjs --local",
+    "seed:remote": "node seed.mjs --remote",
+    "test:e2e": "node test/run-e2e.mjs",
+    "test": "npm run typecheck && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250913.0",
+    "typescript": "~5.9.3",
+    "wrangler": "^4.40.0"
+  }
+}
