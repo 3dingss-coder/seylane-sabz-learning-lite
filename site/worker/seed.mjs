@@ -51,10 +51,17 @@ for (let i = 0; i < stmts.length; i += CHUNK) {
   files.push(file);
 }
 
+// اگر `--persist-to=<path>` داده شود، به همان دیتابیس محلی می‌نویسیم
+// (تست‌ها از یک پوشه‌ی جدا استفاده می‌کنند تا به دیتابیس توسعه دست نزنند).
+const persistArg = process.argv.find((a) => a.startsWith('--persist-to='));
+
 for (const file of files) {
   const args = ['wrangler', 'd1', 'execute', 'ssl-db'];
   if (REMOTE) args.push('--remote');
-  else args.push('--local');
+  else {
+    args.push('--local');
+    if (persistArg) args.push(persistArg);
+  }
   args.push(`--file=${file}`);
   execFileSync('npx', args, { cwd: HERE, stdio: 'inherit' });
 }

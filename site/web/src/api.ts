@@ -66,10 +66,24 @@ interface Options {
   body?: unknown;
   auth?: boolean;
   token?: string | null;
+  /**
+   * وقتی پاسخ 401 باشد چه کنیم:
+   *  - 'handler' (پیش‌فرض): SessionProvider را خبر می‌کنیم تا تمیز خارج کند
+   *  - 'silent': فقط خطا را پرتاب می‌کنیم (برای بررسی اولیه‌ی توکن)
+   */
+  unauthorized?: 'handler' | 'silent';
+}
+
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/** SessionProvider این را ثبت می‌کند تا همه‌ی 401ها از یک مسیر مدیریت شوند. */
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null): void {
+  unauthorizedHandler = fn;
 }
 
 export async function api<T>(path: string, opts: Options = {}): Promise<T> {
-  const { method = 'GET', body, auth = true, token } = opts;
+  const { method = 'GET', body, auth = true, token, unauthorized = 'handler' } = opts;
   const t = token !== undefined ? token : getToken();
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -90,10 +104,11 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
 
   if (!res.ok) {
     const err = data as { error?: string; message?: string } | null;
-    // توکن منقضی/نامعتبر → خروج خودکار تا کاربر در صفحه‌ی خالی گیر نکند.
-    if (res.status === 401 && auth) {
+    // 401 یعنی توکن باطل است. فقط وقتی که واقعاً توکنی فرستاده بودیم
+    // جلسه را باطل می‌کنیم؛ مسیریابی را به React Router می‌سپاریم.
+    if (res.status === 401 && auth && t) {
       clearSession();
-      if (location.hash !== '#/login') location.hash = '#/login';
+      if (unauthorized === 'handler') unauthorizedHandler?.();
     }
     throw new ApiError(err?.error ?? 'ERROR', err?.message ?? 'اتصال برقرار نشد. دوباره تلاش کنید.', res.status);
   }

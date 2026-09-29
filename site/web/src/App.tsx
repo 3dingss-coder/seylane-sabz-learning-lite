@@ -16,8 +16,11 @@ import Admin from './pages/Admin';
 
 /** اگر وارد نشده بود، به صفحه‌ی ورود می‌فرستد و مقصد را نگه می‌دارد. */
 function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean }) {
-  const { user, ready } = useSession();
+  const { user, ready, loggingOut } = useSession();
   const loc = useLocation();
+  // در لحظه‌ی خروج، صبر می‌کنیم تا جابه‌جایی به صفحه‌ی اصلی انجام شود؛
+  // وگرنه همین‌جا <Navigate to="/login"> رندر می‌شود و کاربر به ورود می‌افتد.
+  if (loggingOut) return <Spinner label="در حال خروج…" />;
   if (!ready) return <Spinner label="در حال بررسی ورود…" />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
   if (admin && user.role !== 'admin') return <Navigate to="/brands" replace />;

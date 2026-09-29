@@ -170,7 +170,7 @@ export default function QuizzesTab() {
                           onClick={() =>
                             setEditing({ ...editing, questions: editing.questions.filter((_, i) => i !== qi) })
                           }
-                          aria-label={`حذف سؤال ${qi + 1}`}
+                          aria-label={`حذف سؤال ${fa(qi + 1)}`}
                         >
                           <Trash2 size={15} aria-hidden />
                         </button>
@@ -181,7 +181,7 @@ export default function QuizzesTab() {
                       placeholder="متن سؤال"
                       value={q.q}
                       onChange={(e) => setQ(qi, { q: e.target.value })}
-                      aria-label={`متن سؤال ${qi + 1}`}
+                      aria-label={`متن سؤال ${fa(qi + 1)}`}
                     />
                     <div className="flex flex-col gap-2">
                       {q.options.map((opt, oi) => (
@@ -192,7 +192,7 @@ export default function QuizzesTab() {
                             className="h-5 w-5 shrink-0"
                             checked={q.answer === oi}
                             onChange={() => setQ(qi, { answer: oi })}
-                            aria-label={`گزینه‌ی درست سؤال ${qi + 1}`}
+                            aria-label={`گزینه‌ی درست سؤال ${fa(qi + 1)}`}
                           />
                           <input
                             className="input flex-1"
@@ -211,7 +211,7 @@ export default function QuizzesTab() {
                                 const options = q.options.filter((_, i) => i !== oi);
                                 setQ(qi, { options, answer: Math.min(q.answer, options.length - 1) });
                               }}
-                              aria-label={`حذف گزینه‌ی ${oi + 1}`}
+                              aria-label={`حذف گزینه‌ی ${fa(oi + 1)}`}
                             >
                               <Trash2 size={14} aria-hidden />
                             </button>

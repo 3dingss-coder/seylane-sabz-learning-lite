@@ -13,6 +13,9 @@ export function useAdminList<T>(path: string) {
   useEffect(() => {
     let alive = true;
     setError('');
+    // وقتی مسیر عوض می‌شود (مثلاً فیلتر برند)، فهرست قبلی را نشان نمی‌دهیم؛
+    // وگرنه کاربر برای لحظه‌ای داده‌ی اشتباه می‌بیند.
+    setItems(null);
     api<{ items: T[] }>(path)
       .then((res) => {
         if (alive) setItems(res.items);

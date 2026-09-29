@@ -62,12 +62,15 @@ export default function Learn() {
   const [reload, setReload] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  /** آخرین ثبت درصد پخش، برای محدودکردن تعداد درخواست‌ها */
+  const lastReport = useRef<{ at: number; pct: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
     setError('');
     setDone(false);
     setNotice('');
+    lastReport.current = null;
     api<Content>(`/api/contents/${encodeURIComponent(contentId)}`)
       .then((res) => {
         if (alive) setData(res);
@@ -102,19 +105,29 @@ export default function Learn() {
     [data, done, saving],
   );
 
-  /** ثبت درصد پخش، تا ادمین ببیند بازاریاب تا کجا گوش داده */
-  const reportPercent = useCallback(async () => {
+  /**
+   * ثبت درصد پخش، تا ادمین ببیند بازاریاب تا کجا گوش داده.
+   * رویداد timeupdate چند بار در ثانیه شلیک می‌شود؛ برای اینکه سرور را
+   * پر درخواست نکنیم، حداکثر هر ۱۵ ثانیه یک بار و با تغییر حداقل ۵٪ ثبت می‌کنیم.
+   */
+  const reportPercent = useCallback(() => {
     const el = audioRef.current ?? videoRef.current;
     if (!el || !data || done) return;
     if (!el.duration || !Number.isFinite(el.duration) || el.currentTime < 5) return;
-    try {
-      await api('/api/progress', {
-        method: 'POST',
-        body: { contentId: data.id, status: 'started', percent: Math.round((el.currentTime / el.duration) * 100) },
-      });
-    } catch {
-      /* بی‌صدا رد می‌شویم؛ ثبت درصد حیاتی نیست */
+
+    const percent = Math.round((el.currentTime / el.duration) * 100);
+    const now = Date.now();
+    if (lastReport.current && now - lastReport.current.at < 15_000 && percent - lastReport.current.pct < 5) {
+      return;
     }
+    lastReport.current = { at: now, pct: percent };
+
+    void api('/api/progress', {
+      method: 'POST',
+      body: { contentId: data.id, status: 'started', percent },
+    }).catch(() => {
+      /* ثبت درصد حیاتی نیست؛ بی‌صدا رد می‌شویم */
+    });
   }, [data, done]);
 
   if (error) {

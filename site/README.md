@@ -230,12 +230,22 @@ cd .. && node scripts/serve-all.mjs
 # API — typecheck + ۷۷ بررسی روی Worker واقعی و D1 واقعی
 cd site/worker && npm test
 
-# بیلد سایت + بررسی اینکه زیر زیرمسیر (مثل GitHub Pages) درست کار می‌کند
-cd site/web && npm run build && npm run check:dist
+# سایت — typecheck + ۲۹ تست رابط کاربری + بیلد + بررسی بیلد زیر زیرمسیر
+cd site/web && npm test
+
+# فقط تست‌های رابط کاربری (Worker باید روی ۸۷۸۷ در حال اجرا باشد)
+cd site/web && npm run test:ui
 
 # تست در مرورگر واقعی روی موبایل و دسکتاپ (Pixel 7، iPhone 13، دسکتاپ)
 cd site/web && npx playwright install && npm run test:browser
 ```
+
+تست‌های رابط کاربری، **کامپوننت‌های واقعی** را در برابر API واقعی اجرا می‌کنند:
+مسیر نشست (ثبت‌نام، رفرش صفحه، خروج و ورود دوباره)، صفحه‌ی پخش پادکست و ویدئو،
+جست‌وجو، آزمون با تکرار، و هر پنج تب پنل ادمین.
+
+> تست API از دیتابیس جداگانه‌ی `.wrangler-test` و پورت `8799` استفاده می‌کند،
+> پس هم‌زمان با `npm run dev` هم می‌توانید `npm test` را اجرا کنید.
 
 هر سه در GitHub Actions هم به‌صورت خودکار اجرا می‌شوند و
 اگر چیزی خراب باشد، **سایت منتشر نمی‌شود**.

@@ -1,5 +1,5 @@
 // تصویر با مسیر نسبی (سازگار با GitHub Pages) و جایگزین در صورت نبودن فایل.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 
 /**
@@ -24,6 +24,12 @@ export function SmartImage({
 }) {
   const [broken, setBroken] = useState(false);
   const url = assetUrl(src);
+
+  // React این کامپوننت را بین محصولات بازاستفاده می‌کند؛ اگر آدرس عوض شد
+  // باید حالت «خراب» را صفر کنیم، وگرنه تصویر سالم هم جایگزین می‌گیرد.
+  useEffect(() => {
+    setBroken(false);
+  }, [url]);
 
   if (!url || broken) {
     return (

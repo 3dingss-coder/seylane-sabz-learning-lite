@@ -1,24 +1,30 @@
 // ورود — فقط یک فیلد: شماره موبایل.
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus } from 'lucide-react';
-import { ApiError } from '../api';
+import { ApiError, getToken } from '../api';
 import { useSession } from '../store';
-import { Field } from '../components/ui';
+import { Field, Spinner } from '../components/ui';
 import { faPhone, isPhoneValid, sanitizePhone } from '../lib/format';
 
 export default function Login() {
-  const { login } = useSession();
+  const { login, user, ready, notice, clearNotice } = useSession();
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notRegistered, setNotRegistered] = useState(false);
 
+  // اگر از قبل وارد است، دلیلی ندارد فرم ورود را ببیند.
+  if (ready && user) return <Navigate to="/brands" replace />;
+  // اگر توکنی در حافظه هست و هنوز در حال بررسی اعتبار است، صبر می‌کنیم.
+  if (!ready && !user && getToken()) return <Spinner label="در حال بررسی ورود…" />;
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setNotRegistered(false);
+    clearNotice();
 
     if (!isPhoneValid(phone)) {
       setError('شماره موبایل را کامل و درست وارد کنید. مثال: ۰۹۱۲۱۲۳۴۵۶۷');
@@ -50,6 +56,16 @@ export default function Login() {
       <p className="mt-1 mb-6" style={{ color: 'var(--color-ink-soft)' }}>
         شماره موبایلی که با آن ثبت‌نام کرده‌اید را وارد کنید.
       </p>
+
+      {notice && (
+        <div
+          role="status"
+          className="mb-5 rounded-xl p-3 text-sm font-bold"
+          style={{ background: 'var(--color-info-soft)', color: 'var(--color-info)' }}
+        >
+          {notice}
+        </div>
+      )}
 
       <form onSubmit={onSubmit} noValidate>
         <Field label="شماره موبایل" htmlFor="phone" error={error || undefined} hint="مثال: ۰۹۱۲۱۲۳۴۵۶۷">

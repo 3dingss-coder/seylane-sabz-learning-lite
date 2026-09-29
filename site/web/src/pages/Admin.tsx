@@ -48,7 +48,9 @@ export default function Admin() {
     return () => {
       alive = false;
     };
-  }, [reload, tab]);
+    // عمداً به tab وابسته نیست: نمای کلی با عوض‌کردن بخش‌ها تغییر نمی‌کند
+    // و نباید با هر کلیک، دوباره از سرور گرفته شود.
+  }, [reload]);
 
   return (
     <Shell title="پنل مدیریت" wide>

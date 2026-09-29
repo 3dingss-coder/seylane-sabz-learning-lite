@@ -1,13 +1,14 @@
 // ثبت‌نام — نام، نام خانوادگی، شماره موبایل. بعد از ثبت‌نام مستقیم وارد می‌شود.
 import { useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { getToken } from '../api';
 import { useSession } from '../store';
-import { Field } from '../components/ui';
+import { Field, Spinner } from '../components/ui';
 import { isPhoneValid, sanitizePhone } from '../lib/format';
 
 export default function Signup() {
-  const { signup } = useSession();
+  const { signup, user, ready, clearNotice } = useSession();
   const navigate = useNavigate();
   const loc = useLocation() as { state?: { phone?: string } };
 
@@ -17,8 +18,13 @@ export default function Signup() {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; phone?: string; form?: string }>({});
 
+  // اگر از قبل وارد است، مستقیم به اپ می‌رود.
+  if (ready && user) return <Navigate to="/brands" replace />;
+  if (!ready && !user && getToken()) return <Spinner label="در حال بررسی ورود…" />;
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    clearNotice();
     const next: typeof errors = {};
     if (firstName.trim().length < 2) next.firstName = 'نام خود را کامل بنویسید.';
     if (lastName.trim().length < 2) next.lastName = 'نام خانوادگی خود را کامل بنویسید.';
